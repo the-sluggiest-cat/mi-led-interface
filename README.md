@@ -1,4 +1,4 @@
-# __M__erkury __I__nnovations Multicolor Matrix __L__ED Display __I__nterfacing Library
+# **M**erkury **I**nnovations Multicolor Matrix **L**ED Display **I**nterfacing Library
 ---
 
 Whew, what a mouthful, huh? MILI for short, provides automatic, high-level interfacing with the Merkury Innovation's Multicolor Matrix LED Display.
