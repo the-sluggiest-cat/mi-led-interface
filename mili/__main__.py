@@ -24,7 +24,7 @@ async def __main():
     for _ in range(9):
         if succeeded: break
         print("Failed to pair. Trying again...")
-        succeeded = await panel_client.pair()
+        succeeded = await panel_client.pair_to_panel()
     if succeeded is False: print("Failed to connect 10 times. Is it nearby, powered on, and not already connected to something?"); exit()
 
     await panel_client.connect_to_panel()
