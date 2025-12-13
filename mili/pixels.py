@@ -49,9 +49,12 @@ class Pixel:
 class PixelGrid:
     height: int
     width: int
-    _pixels: list[list[Pixel]]
+    _pixels: list[Pixel]
 
-    def __init__(self, pixel_grid_compatible: list[list[tuple[int]]] = None):
+    PANEL_WIDTH: int
+    PANEL_HEIGHT: int
+
+    def __init__(self, pixel_grid_compatible: list[tuple(int)] = None, panel_width: int = 16, panel_height: int = 16):
         """
         PixelGrid of 16x16, compatible with the Merkury LED panel.
         pixel_grid_compatible is expected to be a list[list[tuple[int]]], i.e.:
@@ -59,22 +62,26 @@ class PixelGrid:
         ...where the first, second, and third index of the tuple is the associated RGB values of that pixel.
         """
         self._pixels = []
-        PANEL_WIDTH  = 16
-        PANEL_HEIGHT = 16        
+        self.PANEL_WIDTH    = panel_width
+        self.PANEL_HEIGHT   = panel_height   
         
         if not pixel_grid_compatible:
-            for _ in range(PANEL_WIDTH):
-                temp_column = []
-                for _ in range(PANEL_HEIGHT):
-                    temp_column.append(Pixel())
-                self._pixels.append(temp_column)
+            for _ in range(panel_width*panel_height):
+                self._pixels.append(Pixel())
         else:
-            for y in range(PANEL_WIDTH):
-                temp_column = []
-                for x in range(PANEL_HEIGHT):
+            for y in range(panel_width):
+                for x in range(panel_height):
                     r, g, b = pixel_grid_compatible[x][y]
-                    temp_column.append(Pixel(r, g, b))
-                self._pixels.append(temp_column)
+                    self._pixels.append(Pixel(r, g, b))
+
+    def __calculate_position_from_x_y(self, x: int, y: int):
+        return y*self.PANEL_HEIGHT+x
+    
+    # def __calculate_position_from_index(self, pos: int):
+    #     return (pos//self.PANEL_HEIGHT, (pos-self.PANEL_HEIGHT*(pos//self.PANEL_HEIGHT))%self.PANEL_WIDTH)
+    # likely won't be necessary, considering we use x, y coordinates fundamentally, but. w/e
+
+    # ---------------------------------------------------- #
 
     def get_pixel(self, x: int, y: int):
         """
@@ -83,7 +90,7 @@ class PixelGrid:
         y: int
         """
         assert isinstance(x, int) and isinstance(y, int), f"X or Y is not a number. ({x}, {y})"
-        return self._pixels[x][y]
+        return self._pixels[self.__calculate_position_from_x_y(x, y)]
     
     def set_pixel(self, x: int, y: int, val: Pixel):
         """
@@ -97,8 +104,11 @@ class PixelGrid:
             r, g, b = val[0], val[1], val[2]
             val = Pixel(r, g, b)
         assert isinstance(x, int) and isinstance(y, int) and isinstance(val, Pixel), f"X, Y is not a number, or value provided is not a valid pixel. ({x}, {y}) = {val}"
-        self._pixels[x][y] = val
+        self._pixels[self.__calculate_position_from_x_y(x, y)] = val
         return val.grayscale()
+    
+    # ---------------------------------------------------- #
+
     
     @staticmethod
     def from_image(fp_or_image: str | Image.Image) -> "PixelGrid" | list["PixelGrid"]:
@@ -156,48 +166,53 @@ class PixelGrid:
         ready to be sent to the display sequentially.
         """
         all_commands = []
-        
-        flat_pixels = []
-        for y in range(len(self._pixels[0])):
-            for x in range(len(self._pixels)):
-                flat_pixels.append(self.get_pixel(x, y))
+
+        # after refactoring to be on a positional index rather than a row-first list-in-list, this
+        # *should* be more performant. hopefully a bit more readable. no guarantees though.
         
         PIXELS_PER_BLOCK = 32
         TOTAL_BLOCKS = 8
         
         for block_index in range(TOTAL_BLOCKS):
             start = block_index * PIXELS_PER_BLOCK
+            # eg: 1 * 32 = 32
             end = start + PIXELS_PER_BLOCK
-            block_pixels = flat_pixels[start:end]
+            # 32 + 32 = 64
+            
+            # pixels 32 thru 64
+            block_pixels = self._pixels[start:end]
+                                        # funni list comprehension...ish. i guess more accurately index splitting?
             
         
-            header = bytearray([0xBC, 0x0F, block_index + 1])
+            COMMAND_INITIATOR = 0xBC
+            MI_SPECIAL_VALUE = 0x0F # this means something to somebody. i don't quite know what
+            # it could be an indicator that this is to be used with "image mode"? we're kind of emulating it and 
+            # doing it ourselves in favor of whatever bullshit the app protocol's got going on
+
+            # maybe there's a way to transmit and store images on it? if so, it's gonna take a lot more effort
+            # than i'm willing to put in
+            TERMINATOR = 0x55
+            header = bytearray([COMMAND_INITIATOR, MI_SPECIAL_VALUE, block_index + 1])
             pixel_data = bytearray()
             for pixel in block_pixels:
                 # Extend with R, G, B bytes
                 assert isinstance(pixel, Pixel), "Received value in PixelGrid is not a Pixel."
                 pixel_data.extend([pixel.r, pixel.g, pixel.b])
-            terminator = bytearray([0x55])
+            terminator = bytearray([TERMINATOR])
             command = header + pixel_data + terminator
             all_commands.append(command)
 
         return all_commands
     
     def __repr__(self):
-        # Initialize the accumulator string here!
         _returned = "" 
         
-        # Assuming 16x16 grid: len(self._pixels) is 16 (width), len(self._pixels[0]) is 16 (height)
-        for y in range(len(self._pixels[0])): # Iterate over rows (height)
-            for x in range(len(self._pixels)): # Iterate over columns (width)
-                pixel = self._pixels[x][y] 
-                
-                # Applying the correct comparison (==) fix for padding
-                hex_value = _hex(pixel.grayscale())
-                padded_hex = hex_value if len(hex_value) == 2 else f'0{hex_value}'
-                
-                _returned += f"{padded_hex} "
-            _returned += "\n"
+        for index, pixel in enumerate(self._pixels):
+            hex_value = _hex(pixel.grayscale())
+            padded_hex = hex_value if len(hex_value) == 2 else f'0{hex_value}'
+            
+            _returned += f"{padded_hex} "
+            if index%16==0 and index!=0: _returned += "\n"
         return _returned
     
 if __name__ == "__main__":
