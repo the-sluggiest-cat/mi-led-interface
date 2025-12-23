@@ -76,7 +76,7 @@ class PanelClient(BleakClient):
             batched_data = pg.render()
             for data in batched_data:
                 await self.write_gatt_char(self.CHARACTERISTIC_UUID, data)
-                await sleep(0.1)
+                await sleep(0.03)
                 data = 0
 
     def show_image(self, pixel_grid: PixelGrid | list[PixelGrid], loop: bool = False):

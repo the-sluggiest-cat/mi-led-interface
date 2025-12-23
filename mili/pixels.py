@@ -77,8 +77,8 @@ class PixelGrid:
     def __calculate_position_from_x_y(self, x: int, y: int):
         return y*self.PANEL_HEIGHT+x
     
-    # def __calculate_position_from_index(self, pos: int):
-    #     return (pos//self.PANEL_HEIGHT, (pos-self.PANEL_HEIGHT*(pos//self.PANEL_HEIGHT))%self.PANEL_WIDTH)
+    def __calculate_position_from_index(self, pos: int):
+        return (pos//self.PANEL_HEIGHT, pos%self.PANEL_HEIGHT)
     # likely won't be necessary, considering we use x, y coordinates fundamentally, but. w/e
 
     # ---------------------------------------------------- #
